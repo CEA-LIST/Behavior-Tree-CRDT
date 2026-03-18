@@ -27,9 +27,7 @@ fn instance_from_path(path: &ObjectPath) -> Option<Instance> {
 }
 
 pub fn vertex_ops_from_sink<P: Policy>(sink: &Sink) -> Option<ReferenceManager<P>> {
-    let Some(instance) = instance_from_path(sink.object_path()) else {
-        return None;
-    };
+    let instance = instance_from_path(sink.object_path())?;
 
     match sink.effect() {
         SinkEffect::Create | SinkEffect::Update => {

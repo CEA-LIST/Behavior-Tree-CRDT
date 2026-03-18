@@ -19,8 +19,8 @@ use crate::{
     references::compute_arc_constraints,
 };
 
-fn generate_boxed_tree_node(log: &Box<TreeNodeLog>, rng: &mut impl Rng) -> Box<TreeNode> {
-    Box::new(log.as_ref().generate(rng))
+fn generate_boxed_tree_node(log: &TreeNodeLog, rng: &mut impl Rng) -> Box<TreeNode> {
+    Box::new(log.generate(rng))
 }
 
 fn generate_boxed_tree_list(
@@ -311,9 +311,10 @@ impl OpGeneratorNested for DecoratorLog {
             },
             DecoratorContainer::Conflicts(children) => children
                 .iter()
-                .find_map(|child| match child {
-                    DecoratorChild::Inverter(log) => Some(log.clone()),
+                .map(|child| match child {
+                    DecoratorChild::Inverter(log) => log.clone(),
                 })
+                .next()
                 .unwrap_or_default(),
             DecoratorContainer::Unset => InverterLog::default(),
         };
@@ -440,9 +441,10 @@ impl OpGeneratorNested for ConditionLog {
             },
             ConditionContainer::Conflicts(children) => children
                 .iter()
-                .find_map(|child| match child {
-                    ConditionChild::IsDoorOpen(log) => Some(log.clone()),
+                .map(|child| match child {
+                    ConditionChild::IsDoorOpen(log) => log.clone(),
                 })
+                .next()
                 .unwrap_or_default(),
             ConditionContainer::Unset => IsDoorOpenLog::default(),
         };
