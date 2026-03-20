@@ -9,6 +9,62 @@ use moirai_protocol::{
     crdt::query::Read,
     replica::{IsReplica, Replica},
 };
+use petgraph::{Direction, graph::DiGraph};
+
+struct Vf2GraphView<'a>(&'a DiGraph<Instance, behaviortree::references::Ref>);
+
+impl<'a> vf2::Graph for Vf2GraphView<'a> {
+    type NodeLabel = Instance;
+    type EdgeLabel = behaviortree::references::Ref;
+
+    fn is_directed(&self) -> bool {
+        true
+    }
+
+    fn node_count(&self) -> usize {
+        self.0.node_count()
+    }
+
+    fn node_label(&self, node: vf2::NodeIndex) -> Option<&Self::NodeLabel> {
+        self.0.node_weight(petgraph::graph::NodeIndex::new(node))
+    }
+
+    fn neighbors(
+        &self,
+        node: vf2::NodeIndex,
+        direction: vf2::Direction,
+    ) -> impl Iterator<Item = vf2::NodeIndex> {
+        self.0
+            .neighbors_directed(
+                petgraph::graph::NodeIndex::new(node),
+                match direction {
+                    vf2::Direction::Outgoing => Direction::Outgoing,
+                    vf2::Direction::Incoming => Direction::Incoming,
+                },
+            )
+            .map(|neighbor| neighbor.index())
+    }
+
+    fn contains_edge(&self, source: vf2::NodeIndex, target: vf2::NodeIndex) -> bool {
+        self.0.contains_edge(
+            petgraph::graph::NodeIndex::new(source),
+            petgraph::graph::NodeIndex::new(target),
+        )
+    }
+
+    fn edge_label(
+        &self,
+        source: vf2::NodeIndex,
+        target: vf2::NodeIndex,
+    ) -> Option<&Self::EdgeLabel> {
+        self.0
+            .find_edge(
+                petgraph::graph::NodeIndex::new(source),
+                petgraph::graph::NodeIndex::new(target),
+            )
+            .and_then(|edge| self.0.edge_weight(edge))
+    }
+}
 
 fn graph_vertices(replica: &Replica<BehaviortreeLog, Tcsb<Behaviortree>>) -> Vec<String> {
     let mut vertices = replica
@@ -107,17 +163,47 @@ fn fuzz() {
         fuzzer::fuzzer,
     };
 
-    let run = RunConfig::new(0.6, 8, 100, None, None, true, false);
-    let runs = vec![run.clone(); 10];
+    let run = RunConfig::new(0.6, 8, 50, None, None, true, false);
+    let runs = vec![run.clone(); 10_000];
 
     let config = FuzzerConfig::<BehaviortreeLog>::new(
         "bt",
         runs,
         true,
         |a, b| {
-            a.refs.node_count() == b.refs.node_count()
-                && a.refs.edge_count() == b.refs.edge_count()
-                && a.root == b.root
+            let package = a.root == b.root;
+            if !package {
+                println!("Package mismatch");
+                println!("----- Root A -----");
+                println!("{:#?}", a.root);
+                println!("----- Root B -----");
+                println!("{:#?}", b.root);
+                return false;
+            }
+
+            if a.refs.node_count() == 0 && b.refs.node_count() == 0 {
+                // If both graphs are empty, skip the isomorphism check to avoid false negatives due to different node IDs.
+                return true;
+            } else {
+                let refs = vf2::isomorphisms(&Vf2GraphView(&a.refs), &Vf2GraphView(&b.refs))
+                    .default_eq()
+                    .first()
+                    .is_some();
+                if !refs {
+                    println!(
+                        "Graph isomorphism mismatch: nodes {} vs {}, edges {} vs {}",
+                        a.refs.node_count(),
+                        b.refs.node_count(),
+                        a.refs.edge_count(),
+                        b.refs.edge_count()
+                    );
+                    println!("----- Graph A -----");
+                    println!("{:#?}", a.refs);
+                    println!("----- Graph B -----");
+                    println!("{:#?}", b.refs);
+                }
+                return refs;
+            }
         },
         false,
     );
