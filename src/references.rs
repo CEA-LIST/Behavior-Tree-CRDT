@@ -1,5 +1,6 @@
 use moirai_protocol::{
     crdt::policy::Policy,
+    state::sink::PathSegment::{Field, ListElement, MapEntry, Variant},
     state::sink::{ObjectPath, Sink, SinkEffect},
 };
 
@@ -8,26 +9,118 @@ mod __references {
 }
 
 fn instance_from_path(path: &ObjectPath) -> Option<Instance> {
-    use moirai_protocol::state::sink::PathSegment::*;
-
     let segs = path.segments();
 
     match segs {
-        [.., Field("blackboard"), Field("entries"), ListElement(_)] => {
-            Some(Instance::BlackboardEntryId(BlackboardEntryId(path.clone())))
-        }
-        [.., Field("outflowports"), ListElement(_)] => {
-            Some(Instance::DataFlowPortId(DataFlowPortId(path.clone())))
-        }
-        [.., Field("inflowports"), ListElement(_)] => {
-            Some(Instance::DataFlowPortId(DataFlowPortId(path.clone())))
-        }
+        [
+            ..,
+            Field("main"),
+            Field("child"),
+            Variant("ExecutionNode"),
+            Variant("Action"),
+            Variant("OpenDoor"),
+            Field("action_feat"),
+            Field("execution_node_feat"),
+            Field("outflowports"),
+            ListElement(_),
+        ] => Some(Instance::DataFlowPortId(DataFlowPortId(path.clone()))),
+        [
+            ..,
+            Field("main"),
+            Field("child"),
+            Variant("ExecutionNode"),
+            Variant("Action"),
+            Variant("OpenDoor"),
+            Field("action_feat"),
+            Field("execution_node_feat"),
+            Field("inflowports"),
+            ListElement(_),
+        ] => Some(Instance::DataFlowPortId(DataFlowPortId(path.clone()))),
+        [
+            ..,
+            Field("main"),
+            Field("child"),
+            Variant("ExecutionNode"),
+            Variant("Action"),
+            Variant("EnterRoom"),
+            Field("action_feat"),
+            Field("execution_node_feat"),
+            Field("outflowports"),
+            ListElement(_),
+        ] => Some(Instance::DataFlowPortId(DataFlowPortId(path.clone()))),
+        [
+            ..,
+            Field("main"),
+            Field("child"),
+            Variant("ExecutionNode"),
+            Variant("Action"),
+            Variant("EnterRoom"),
+            Field("action_feat"),
+            Field("execution_node_feat"),
+            Field("inflowports"),
+            ListElement(_),
+        ] => Some(Instance::DataFlowPortId(DataFlowPortId(path.clone()))),
+        [
+            ..,
+            Field("main"),
+            Field("child"),
+            Variant("ExecutionNode"),
+            Variant("Action"),
+            Variant("CloseDoor"),
+            Field("action_feat"),
+            Field("execution_node_feat"),
+            Field("outflowports"),
+            ListElement(_),
+        ] => Some(Instance::DataFlowPortId(DataFlowPortId(path.clone()))),
+        [
+            ..,
+            Field("main"),
+            Field("child"),
+            Variant("ExecutionNode"),
+            Variant("Action"),
+            Variant("CloseDoor"),
+            Field("action_feat"),
+            Field("execution_node_feat"),
+            Field("inflowports"),
+            ListElement(_),
+        ] => Some(Instance::DataFlowPortId(DataFlowPortId(path.clone()))),
+        [
+            ..,
+            Field("main"),
+            Field("child"),
+            Variant("ExecutionNode"),
+            Variant("Condition"),
+            Variant("IsDoorOpen"),
+            Field("condition_feat"),
+            Field("execution_node_feat"),
+            Field("outflowports"),
+            ListElement(_),
+        ] => Some(Instance::DataFlowPortId(DataFlowPortId(path.clone()))),
+        [
+            ..,
+            Field("main"),
+            Field("child"),
+            Variant("ExecutionNode"),
+            Variant("Condition"),
+            Variant("IsDoorOpen"),
+            Field("condition_feat"),
+            Field("execution_node_feat"),
+            Field("inflowports"),
+            ListElement(_),
+        ] => Some(Instance::DataFlowPortId(DataFlowPortId(path.clone()))),
+        [
+            ..,
+            Field("main"),
+            Field("blackboard"),
+            Field("entries"),
+            ListElement(_),
+        ] => Some(Instance::BlackboardEntryId(BlackboardEntryId(path.clone()))),
         _ => None,
     }
 }
 
 pub fn vertex_ops_from_sink<P: Policy>(sink: &Sink) -> Option<ReferenceManager<P>> {
-    let instance = instance_from_path(sink.object_path())?;
+    let instance = instance_from_path(sink.path())?;
 
     match sink.effect() {
         SinkEffect::Create | SinkEffect::Update => {

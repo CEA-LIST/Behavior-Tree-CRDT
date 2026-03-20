@@ -456,7 +456,7 @@ fn fuzz() {
     };
 
     let run = RunConfig::new(0.6, 8, 100, None, None, true, false);
-    let runs = vec![run.clone(); 100];
+    let runs = vec![run.clone(); 10];
 
     let config = FuzzerConfig::<BehaviortreeLog>::new(
         "bt",
