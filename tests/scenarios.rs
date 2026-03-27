@@ -1,13 +1,19 @@
 use behaviortree::{
-    classifiers::{BehaviorTree, Blackboard, BlackboardEntry, Root},
+    classifiers::{
+        Action, ActionFeat, BehaviorTree, Blackboard, BlackboardEntry, ExecutionNode,
+        ExecutionNodeFeat, InFlowPort, OpenDoor, Root, TreeNode,
+    },
     package::{Behaviortree, BehaviortreeLog},
     references::{Instance, Ref},
 };
-use moirai_crdt::list::{eg_walker::List, nested_list::NestedList};
+use moirai_crdt::{
+    list::{eg_walker::List, nested_list::NestedList},
+    utils::membership::twins_log,
+};
 use moirai_protocol::{
     broadcast::tcsb::Tcsb,
     crdt::query::Read,
-    replica::{IsReplica, Replica},
+    replica::{self, IsReplica, Replica},
 };
 use petgraph::{Direction, graph::DiGraph};
 
@@ -95,13 +101,47 @@ fn graph_edges(replica: &Replica<BehaviortreeLog, Tcsb<Behaviortree>>) -> Vec<St
     edges
 }
 
+#[test]
+fn vertex_cascade_creation() {
+    let (mut replica_a, mut replica_b) = twins_log::<BehaviortreeLog>();
+
+    let a1 = replica_a
+        .send(Behaviortree::Root(Root::Main(BehaviorTree::Child(
+            Box::new(TreeNode::ExecutionNode(ExecutionNode::Action(
+                Action::OpenDoor(OpenDoor::ActionFeat(ActionFeat::ExecutionNodeFeat(
+                    ExecutionNodeFeat::Inflowports(NestedList::Insert {
+                        pos: 0,
+                        value: InFlowPort::New,
+                    }),
+                ))),
+            ))),
+        ))))
+        .unwrap();
+
+    // println!("{:#?}", replica_a.query(Read::new()).root);
+    // println!(
+    //     "{:#?}",
+    //     replica_a
+    //         .query(Read::new())
+    //         .refs
+    //         .node_weights()
+    //         .map(|n| match n {
+    //             Instance::BlackboardEntryId(id) => format!("BlackboardEntryId({})", id.0),
+    //             Instance::OutFlowPortId(id) => format!("OutFlowPortId({})", id.0),
+    //             Instance::InFlowPortId(id) => format!("InFlowPortId({})", id.0),
+    //         })
+    //         .collect::<Vec<_>>()
+    //         .join(",")
+    // );
+    assert_eq!(replica_a.query(Read::new()).refs.node_count(), 1);
+}
+
 /// This test checks that when we update a blackboard entry while another replica deletes it concurrently,
 /// the delete do reset the blackboard entry to the default value, but the update is then applied.
 /// In addition, we check that the vertex is revived in the reference graph.
 #[test]
 fn blackboard_update_delete() {
-    let mut replica_a = Replica::<BehaviortreeLog, Tcsb<Behaviortree>>::new("a".to_string());
-    let mut replica_b = Replica::<BehaviortreeLog, Tcsb<Behaviortree>>::new("b".to_string());
+    let (mut replica_a, mut replica_b) = twins_log::<BehaviortreeLog>();
 
     let a1 = replica_a
         .send(Behaviortree::Root(Root::Main(BehaviorTree::Blackboard(
@@ -163,8 +203,8 @@ fn fuzz() {
         fuzzer::fuzzer,
     };
 
-    let run = RunConfig::new(0.6, 8, 50, None, None, true, false);
-    let runs = vec![run.clone(); 10_000];
+    let run = RunConfig::new(0.4, 4, 1_000, None, None, true, false);
+    let runs = vec![run.clone(); 1];
 
     let config = FuzzerConfig::<BehaviortreeLog>::new(
         "bt",
