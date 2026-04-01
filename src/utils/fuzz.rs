@@ -46,18 +46,18 @@ fn generate_boxed_tree_list(
     let op = match choice {
         Choice::Insert => {
             let pos = rng.random_range(0..=positions.len());
-            let value = generate_boxed_tree_node(&Box::<TreeNodeLog>::default(), rng);
-            NestedList::Insert { pos, value }
+            let op = generate_boxed_tree_node(&Box::<TreeNodeLog>::default(), rng);
+            NestedList::Insert { pos, op }
         }
         Choice::Update => {
             let pos = rng.random_range(0..positions.len());
             let target_id = &positions[pos];
-            let value = log
+            let op = log
                 .children()
-                .get(target_id)
+                .get_child(target_id)
                 .map(|child| generate_boxed_tree_node(child, rng))
                 .unwrap_or_else(|| generate_boxed_tree_node(&Box::<TreeNodeLog>::default(), rng));
-            NestedList::Update { pos, value }
+            NestedList::Update { pos, op }
         }
         Choice::Delete => {
             let pos = rng.random_range(0..positions.len());
