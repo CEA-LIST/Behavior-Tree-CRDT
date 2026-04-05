@@ -1,8 +1,8 @@
 /// Auto-generated code by 🅰🆁🅰🅲🅷🅽🅴 - do not edit directly
 mod __references {
     pub use moirai_macros::typed_graph;
-    pub use moirai_protocol::state::sink::ObjectPath;
-    pub use moirai_protocol::state::sink::PathSegment::{Field, ListElement};
+    pub use moirai_protocol::state::object_path::ObjectPath;
+    pub use moirai_protocol::state::object_path::PathSegment::{Field, ListElement};
 }
 pub fn instance_from_path(path: &__references::ObjectPath) -> Option<Instance> {
     let segs = path.segments();
@@ -43,12 +43,17 @@ __references::typed_graph! {
         edge_kind = Ref,
         arc_kind = Refs,
     },
-    vertices { OutFlowPortId, InFlowPortId, BlackboardEntryId },
+    vertices {
+        OutFlowPortId,
+        InFlowPortId,
+        BlackboardEntryId
+    },
     edges {
         OutFlowPortEntryEdge [0, 1],
         InFlowPortEntryEdge [0, 1]
-    }, arcs {
-        OutFlowPortToBlackboardEntry: OutFlowPortId -> BlackboardEntryId (OutFlowPortEntryEdge),
-        InFlowPortToBlackboardEntry: InFlowPortId -> BlackboardEntryId (InFlowPortEntryEdge)
+    },
+    arcs {
+        OutFlowPortToBlackboardEntry : OutFlowPortId -> BlackboardEntryId (OutFlowPortEntryEdge),
+        InFlowPortToBlackboardEntry : InFlowPortId -> BlackboardEntryId (InFlowPortEntryEdge)
     }
 }

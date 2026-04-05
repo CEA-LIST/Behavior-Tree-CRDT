@@ -13,5 +13,11 @@ rand = "0.10.0"
 vf2 = { version = "1.0.1", features = ["petgraph"] }
 
 [features]
-default = ["fuzz"]
+default = ["fuzz", "sink"]
 fuzz = []
+sink = [
+    "moirai-protocol/sink",
+    "moirai-fuzz/sink",
+    "moirai-macros/sink",
+    "moirai-crdt/sink",
+]

@@ -19,14 +19,14 @@ use crate::{
     references::compute_arc_constraints,
 };
 
-fn generate_boxed_tree_node(log: &TreeNodeLog, rng: &mut impl Rng) -> Box<TreeNode> {
+fn generate_boxed_tree_node(log: &TreeNodeKindLog, rng: &mut impl Rng) -> Box<TreeNodeKind> {
     Box::new(log.generate(rng))
 }
 
 fn generate_boxed_tree_list(
-    log: &NestedListLog<Box<TreeNodeLog>>,
+    log: &NestedListLog<Box<TreeNodeKindLog>>,
     rng: &mut impl Rng,
-) -> NestedList<Box<TreeNode>> {
+) -> NestedList<Box<TreeNodeKind>> {
     enum Choice {
         Insert,
         Update,
@@ -46,7 +46,7 @@ fn generate_boxed_tree_list(
     let op = match choice {
         Choice::Insert => {
             let pos = rng.random_range(0..=positions.len());
-            let op = generate_boxed_tree_node(&Box::<TreeNodeLog>::default(), rng);
+            let op = generate_boxed_tree_node(&Box::<TreeNodeKindLog>::default(), rng);
             NestedList::Insert { pos, op }
         }
         Choice::Update => {
@@ -56,7 +56,9 @@ fn generate_boxed_tree_list(
                 .children()
                 .get_child(target_id)
                 .map(|child| generate_boxed_tree_node(child, rng))
-                .unwrap_or_else(|| generate_boxed_tree_node(&Box::<TreeNodeLog>::default(), rng));
+                .unwrap_or_else(|| {
+                    generate_boxed_tree_node(&Box::<TreeNodeKindLog>::default(), rng)
+                });
             NestedList::Update { pos, op }
         }
         Choice::Delete => {
@@ -154,36 +156,44 @@ impl OpGeneratorNested for BehaviorTreeLog {
     }
 }
 
-impl OpGeneratorNested for TreeNodeLog {
+impl OpGeneratorNested for TreeNodeKindLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
         match &self.child {
-            TreeNodeContainer::Unset => match [0_u8, 1, 2, 3].into_iter().choose(rng).unwrap() {
-                0 => TreeNode::ExecutionNode(ExecutionNodeLog::default().generate(rng)),
-                1 => TreeNode::Decorator(DecoratorLog::default().generate(rng)),
-                2 => TreeNode::ControlNode(ControlNodeLog::default().generate(rng)),
-                _ => TreeNode::SubTree(SubTreeLog::default().generate(rng)),
+            TreeNodeKindContainer::Unset => {
+                match [0_u8, 1, 2, 3].into_iter().choose(rng).unwrap() {
+                    0 => TreeNodeKind::ExecutionNode(ExecutionNodeKindLog::default().generate(rng)),
+                    1 => TreeNodeKind::Decorator(DecoratorKindLog::default().generate(rng)),
+                    2 => TreeNodeKind::ControlNode(ControlNodeKindLog::default().generate(rng)),
+                    _ => TreeNodeKind::SubTree(SubTreeLog::default().generate(rng)),
+                }
+            }
+            TreeNodeKindContainer::Value(child) => match child.as_ref() {
+                TreeNodeKindChild::ExecutionNode(log) => {
+                    TreeNodeKind::ExecutionNode(log.generate(rng))
+                }
+                TreeNodeKindChild::Decorator(log) => TreeNodeKind::Decorator(log.generate(rng)),
+                TreeNodeKindChild::ControlNode(log) => TreeNodeKind::ControlNode(log.generate(rng)),
+                TreeNodeKindChild::SubTree(log) => TreeNodeKind::SubTree(log.generate(rng)),
             },
-            TreeNodeContainer::Value(child) => match child.as_ref() {
-                TreeNodeChild::ExecutionNode(log) => TreeNode::ExecutionNode(log.generate(rng)),
-                TreeNodeChild::Decorator(log) => TreeNode::Decorator(log.generate(rng)),
-                TreeNodeChild::ControlNode(log) => TreeNode::ControlNode(log.generate(rng)),
-                TreeNodeChild::SubTree(log) => TreeNode::SubTree(log.generate(rng)),
-            },
-            TreeNodeContainer::Conflicts(children) => children
+            TreeNodeKindContainer::Conflicts(children) => children
                 .iter()
                 .choose(rng)
                 .map(|child| match child {
-                    TreeNodeChild::ExecutionNode(log) => TreeNode::ExecutionNode(log.generate(rng)),
-                    TreeNodeChild::Decorator(log) => TreeNode::Decorator(log.generate(rng)),
-                    TreeNodeChild::ControlNode(log) => TreeNode::ControlNode(log.generate(rng)),
-                    TreeNodeChild::SubTree(log) => TreeNode::SubTree(log.generate(rng)),
+                    TreeNodeKindChild::ExecutionNode(log) => {
+                        TreeNodeKind::ExecutionNode(log.generate(rng))
+                    }
+                    TreeNodeKindChild::Decorator(log) => TreeNodeKind::Decorator(log.generate(rng)),
+                    TreeNodeKindChild::ControlNode(log) => {
+                        TreeNodeKind::ControlNode(log.generate(rng))
+                    }
+                    TreeNodeKindChild::SubTree(log) => TreeNodeKind::SubTree(log.generate(rng)),
                 })
                 .unwrap(),
         }
     }
 }
 
-impl OpGeneratorNested for TreeNodeFeatLog {
+impl OpGeneratorNested for TreeNodeLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
         #[derive(Clone, Copy)]
         enum Choice {
@@ -192,8 +202,8 @@ impl OpGeneratorNested for TreeNodeFeatLog {
         }
 
         match [Choice::Id, Choice::Name].into_iter().choose(rng).unwrap() {
-            Choice::Id => TreeNodeFeat::Id(self.id().generate(rng)),
-            Choice::Name => TreeNodeFeat::Name(self.name().generate(rng)),
+            Choice::Id => TreeNode::Id(self.id().generate(rng)),
+            Choice::Name => TreeNode::Name(self.name().generate(rng)),
         }
     }
 }
@@ -204,24 +214,28 @@ impl OpGeneratorNested for BlackboardLog {
     }
 }
 
-impl OpGeneratorNested for ExecutionNodeLog {
+impl OpGeneratorNested for ExecutionNodeKindLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
         match &self.child {
-            ExecutionNodeContainer::Unset => match [0_u8, 1].into_iter().choose(rng).unwrap() {
-                0 => ExecutionNode::Action(ActionLog::default().generate(rng)),
-                _ => ExecutionNode::Condition(ConditionLog::default().generate(rng)),
+            ExecutionNodeKindContainer::Unset => match [0_u8, 1].into_iter().choose(rng).unwrap() {
+                0 => ExecutionNodeKind::Action(ActionKindLog::default().generate(rng)),
+                _ => ExecutionNodeKind::Condition(ConditionKindLog::default().generate(rng)),
             },
-            ExecutionNodeContainer::Value(child) => match child.as_ref() {
-                ExecutionNodeChild::Action(log) => ExecutionNode::Action(log.generate(rng)),
-                ExecutionNodeChild::Condition(log) => ExecutionNode::Condition(log.generate(rng)),
+            ExecutionNodeKindContainer::Value(child) => match child.as_ref() {
+                ExecutionNodeKindChild::Action(log) => ExecutionNodeKind::Action(log.generate(rng)),
+                ExecutionNodeKindChild::Condition(log) => {
+                    ExecutionNodeKind::Condition(log.generate(rng))
+                }
             },
-            ExecutionNodeContainer::Conflicts(children) => children
+            ExecutionNodeKindContainer::Conflicts(children) => children
                 .iter()
                 .choose(rng)
                 .map(|child| match child {
-                    ExecutionNodeChild::Action(log) => ExecutionNode::Action(log.generate(rng)),
-                    ExecutionNodeChild::Condition(log) => {
-                        ExecutionNode::Condition(log.generate(rng))
+                    ExecutionNodeKindChild::Action(log) => {
+                        ExecutionNodeKind::Action(log.generate(rng))
+                    }
+                    ExecutionNodeKindChild::Condition(log) => {
+                        ExecutionNodeKind::Condition(log.generate(rng))
                     }
                 })
                 .unwrap(),
@@ -229,161 +243,157 @@ impl OpGeneratorNested for ExecutionNodeLog {
     }
 }
 
-impl OpGeneratorNested for ExecutionNodeFeatLog {
+impl OpGeneratorNested for ExecutionNodeLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
         #[derive(Clone, Copy)]
         enum Choice {
-            TreeNodeFeat,
+            TreeNode,
             Outflowports,
             Inflowports,
         }
 
-        match [
-            Choice::TreeNodeFeat,
-            Choice::Outflowports,
-            Choice::Inflowports,
-        ]
-        .into_iter()
-        .choose(rng)
-        .unwrap()
+        match [Choice::TreeNode, Choice::Outflowports, Choice::Inflowports]
+            .into_iter()
+            .choose(rng)
+            .unwrap()
         {
-            Choice::TreeNodeFeat => {
-                ExecutionNodeFeat::TreeNodeFeat(self.tree_node_feat().generate(rng))
-            }
-            Choice::Outflowports => {
-                ExecutionNodeFeat::Outflowports(self.outflowports().generate(rng))
-            }
-            Choice::Inflowports => ExecutionNodeFeat::Inflowports(self.inflowports().generate(rng)),
+            Choice::TreeNode => ExecutionNode::TreeNodeSuper(self.tree_node_super().generate(rng)),
+            Choice::Outflowports => ExecutionNode::Outflowports(self.outflowports().generate(rng)),
+            Choice::Inflowports => ExecutionNode::Inflowports(self.inflowports().generate(rng)),
+        }
+    }
+}
+
+impl OpGeneratorNested for DataFlowPortKindLog {
+    fn generate(&self, rng: &mut impl Rng) -> Self::Op {
+        match &self.child {
+            DataFlowPortKindContainer::Unset => match [0_u8, 1].into_iter().choose(rng).unwrap() {
+                0 => DataFlowPortKind::OutFlowPort(OutFlowPortLog::default().generate(rng)),
+                _ => DataFlowPortKind::InFlowPort(InFlowPortLog::default().generate(rng)),
+            },
+            DataFlowPortKindContainer::Value(child) => match child.as_ref() {
+                DataFlowPortKindChild::OutFlowPort(log) => {
+                    DataFlowPortKind::OutFlowPort(log.generate(rng))
+                }
+                DataFlowPortKindChild::InFlowPort(log) => {
+                    DataFlowPortKind::InFlowPort(log.generate(rng))
+                }
+            },
+            DataFlowPortKindContainer::Conflicts(children) => children
+                .iter()
+                .choose(rng)
+                .map(|child| match child {
+                    DataFlowPortKindChild::OutFlowPort(log) => {
+                        DataFlowPortKind::OutFlowPort(log.generate(rng))
+                    }
+                    DataFlowPortKindChild::InFlowPort(log) => {
+                        DataFlowPortKind::InFlowPort(log.generate(rng))
+                    }
+                })
+                .unwrap(),
         }
     }
 }
 
 impl OpGeneratorNested for DataFlowPortLog {
-    fn generate(&self, rng: &mut impl Rng) -> Self::Op {
-        match &self.child {
-            DataFlowPortContainer::Unset => match [0_u8, 1].into_iter().choose(rng).unwrap() {
-                0 => DataFlowPort::OutFlowPort(OutFlowPortLog::default().generate(rng)),
-                _ => DataFlowPort::InFlowPort(InFlowPortLog::default().generate(rng)),
-            },
-            DataFlowPortContainer::Value(child) => match child.as_ref() {
-                DataFlowPortChild::OutFlowPort(log) => DataFlowPort::OutFlowPort(log.generate(rng)),
-                DataFlowPortChild::InFlowPort(log) => DataFlowPort::InFlowPort(log.generate(rng)),
-            },
-            DataFlowPortContainer::Conflicts(children) => children
-                .iter()
-                .choose(rng)
-                .map(|child| match child {
-                    DataFlowPortChild::OutFlowPort(log) => {
-                        DataFlowPort::OutFlowPort(log.generate(rng))
-                    }
-                    DataFlowPortChild::InFlowPort(log) => {
-                        DataFlowPort::InFlowPort(log.generate(rng))
-                    }
-                })
-                .unwrap(),
-        }
-    }
-}
-
-impl OpGeneratorNested for DataFlowPortFeatLog {
     fn generate(&self, _rng: &mut impl Rng) -> Self::Op {
-        DataFlowPortFeat::New
+        DataFlowPort::New
     }
 }
 
 impl OpGeneratorNested for OutFlowPortLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
-        OutFlowPort::DataFlowPortFeat(self.data_flow_port_feat().generate(rng))
+        OutFlowPort::DataFlowPortSuper(self.data_flow_port_super().generate(rng))
     }
 }
 
 impl OpGeneratorNested for InFlowPortLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
-        InFlowPort::DataFlowPortFeat(self.data_flow_port_feat().generate(rng))
+        InFlowPort::DataFlowPortSuper(self.data_flow_port_super().generate(rng))
+    }
+}
+
+impl OpGeneratorNested for DecoratorKindLog {
+    fn generate(&self, rng: &mut impl Rng) -> Self::Op {
+        let log = match &self.child {
+            DecoratorKindContainer::Value(child) => match child.as_ref() {
+                DecoratorKindChild::Inverter(log) => log.clone(),
+            },
+            DecoratorKindContainer::Conflicts(children) => children
+                .iter()
+                .map(|child| match child {
+                    DecoratorKindChild::Inverter(log) => log.clone(),
+                })
+                .next()
+                .unwrap_or_default(),
+            DecoratorKindContainer::Unset => InverterLog::default(),
+        };
+        DecoratorKind::Inverter(log.generate(rng))
     }
 }
 
 impl OpGeneratorNested for DecoratorLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
-        let log = match &self.child {
-            DecoratorContainer::Value(child) => match child.as_ref() {
-                DecoratorChild::Inverter(log) => log.clone(),
-            },
-            DecoratorContainer::Conflicts(children) => children
-                .iter()
-                .map(|child| match child {
-                    DecoratorChild::Inverter(log) => log.clone(),
-                })
-                .next()
-                .unwrap_or_default(),
-            DecoratorContainer::Unset => InverterLog::default(),
-        };
-        Decorator::Inverter(log.generate(rng))
-    }
-}
-
-impl OpGeneratorNested for DecoratorFeatLog {
-    fn generate(&self, rng: &mut impl Rng) -> Self::Op {
         #[derive(Clone, Copy)]
         enum Choice {
-            TreeNodeFeat,
+            TreeNode,
             Child,
         }
 
-        match [Choice::TreeNodeFeat, Choice::Child]
+        match [Choice::TreeNode, Choice::Child]
             .into_iter()
             .choose(rng)
             .unwrap()
         {
-            Choice::TreeNodeFeat => {
-                DecoratorFeat::TreeNodeFeat(self.tree_node_feat().generate(rng))
-            }
-            Choice::Child => DecoratorFeat::Child(generate_boxed_tree_node(self.child(), rng)),
+            Choice::TreeNode => Decorator::TreeNodeSuper(self.tree_node_super().generate(rng)),
+            Choice::Child => Decorator::Child(generate_boxed_tree_node(self.child(), rng)),
+        }
+    }
+}
+
+impl OpGeneratorNested for ControlNodeKindLog {
+    fn generate(&self, rng: &mut impl Rng) -> Self::Op {
+        match &self.child {
+            ControlNodeKindContainer::Unset => match [0_u8, 1].into_iter().choose(rng).unwrap() {
+                0 => ControlNodeKind::Sequence(SequenceLog::default().generate(rng)),
+                _ => ControlNodeKind::Fallback(FallbackLog::default().generate(rng)),
+            },
+            ControlNodeKindContainer::Value(child) => match child.as_ref() {
+                ControlNodeKindChild::Sequence(log) => ControlNodeKind::Sequence(log.generate(rng)),
+                ControlNodeKindChild::Fallback(log) => ControlNodeKind::Fallback(log.generate(rng)),
+            },
+            ControlNodeKindContainer::Conflicts(children) => children
+                .iter()
+                .choose(rng)
+                .map(|child| match child {
+                    ControlNodeKindChild::Sequence(log) => {
+                        ControlNodeKind::Sequence(log.generate(rng))
+                    }
+                    ControlNodeKindChild::Fallback(log) => {
+                        ControlNodeKind::Fallback(log.generate(rng))
+                    }
+                })
+                .unwrap(),
         }
     }
 }
 
 impl OpGeneratorNested for ControlNodeLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
-        match &self.child {
-            ControlNodeContainer::Unset => match [0_u8, 1].into_iter().choose(rng).unwrap() {
-                0 => ControlNode::Sequence(SequenceLog::default().generate(rng)),
-                _ => ControlNode::Fallback(FallbackLog::default().generate(rng)),
-            },
-            ControlNodeContainer::Value(child) => match child.as_ref() {
-                ControlNodeChild::Sequence(log) => ControlNode::Sequence(log.generate(rng)),
-                ControlNodeChild::Fallback(log) => ControlNode::Fallback(log.generate(rng)),
-            },
-            ControlNodeContainer::Conflicts(children) => children
-                .iter()
-                .choose(rng)
-                .map(|child| match child {
-                    ControlNodeChild::Sequence(log) => ControlNode::Sequence(log.generate(rng)),
-                    ControlNodeChild::Fallback(log) => ControlNode::Fallback(log.generate(rng)),
-                })
-                .unwrap(),
-        }
-    }
-}
-
-impl OpGeneratorNested for ControlNodeFeatLog {
-    fn generate(&self, rng: &mut impl Rng) -> Self::Op {
         #[derive(Clone, Copy)]
         enum Choice {
-            TreeNodeFeat,
+            TreeNode,
             Children,
         }
 
-        match [Choice::TreeNodeFeat, Choice::Children]
+        match [Choice::TreeNode, Choice::Children]
             .into_iter()
             .choose(rng)
             .unwrap()
         {
-            Choice::TreeNodeFeat => {
-                ControlNodeFeat::TreeNodeFeat(self.tree_node_feat().generate(rng))
-            }
+            Choice::TreeNode => ControlNode::TreeNodeSuper(self.tree_node_super().generate(rng)),
             Choice::Children => {
-                ControlNodeFeat::Children(generate_boxed_tree_list(self.children(), rng))
+                ControlNode::Children(generate_boxed_tree_list(self.children(), rng))
             }
         }
     }
@@ -391,70 +401,70 @@ impl OpGeneratorNested for ControlNodeFeatLog {
 
 impl OpGeneratorNested for SequenceLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
-        Sequence::ControlNodeFeat(self.control_node_feat().generate(rng))
+        Sequence::ControlNodeSuper(self.control_node_super().generate(rng))
     }
 }
 
 impl OpGeneratorNested for FallbackLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
-        Fallback::ControlNodeFeat(self.control_node_feat().generate(rng))
+        Fallback::ControlNodeSuper(self.control_node_super().generate(rng))
     }
 }
 
-impl OpGeneratorNested for ActionLog {
+impl OpGeneratorNested for ActionKindLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
         match &self.child {
-            ActionContainer::Unset => match [0_u8, 1, 2].into_iter().choose(rng).unwrap() {
-                0 => Action::OpenDoor(OpenDoorLog::default().generate(rng)),
-                1 => Action::EnterRoom(EnterRoomLog::default().generate(rng)),
-                _ => Action::CloseDoor(CloseDoorLog::default().generate(rng)),
+            ActionKindContainer::Unset => match [0_u8, 1, 2].into_iter().choose(rng).unwrap() {
+                0 => ActionKind::OpenDoor(OpenDoorLog::default().generate(rng)),
+                1 => ActionKind::EnterRoom(EnterRoomLog::default().generate(rng)),
+                _ => ActionKind::CloseDoor(CloseDoorLog::default().generate(rng)),
             },
-            ActionContainer::Value(child) => match child.as_ref() {
-                ActionChild::OpenDoor(log) => Action::OpenDoor(log.generate(rng)),
-                ActionChild::EnterRoom(log) => Action::EnterRoom(log.generate(rng)),
-                ActionChild::CloseDoor(log) => Action::CloseDoor(log.generate(rng)),
+            ActionKindContainer::Value(child) => match child.as_ref() {
+                ActionKindChild::OpenDoor(log) => ActionKind::OpenDoor(log.generate(rng)),
+                ActionKindChild::EnterRoom(log) => ActionKind::EnterRoom(log.generate(rng)),
+                ActionKindChild::CloseDoor(log) => ActionKind::CloseDoor(log.generate(rng)),
             },
-            ActionContainer::Conflicts(children) => children
+            ActionKindContainer::Conflicts(children) => children
                 .iter()
                 .choose(rng)
                 .map(|child| match child {
-                    ActionChild::OpenDoor(log) => Action::OpenDoor(log.generate(rng)),
-                    ActionChild::EnterRoom(log) => Action::EnterRoom(log.generate(rng)),
-                    ActionChild::CloseDoor(log) => Action::CloseDoor(log.generate(rng)),
+                    ActionKindChild::OpenDoor(log) => ActionKind::OpenDoor(log.generate(rng)),
+                    ActionKindChild::EnterRoom(log) => ActionKind::EnterRoom(log.generate(rng)),
+                    ActionKindChild::CloseDoor(log) => ActionKind::CloseDoor(log.generate(rng)),
                 })
                 .unwrap(),
         }
     }
 }
 
-impl OpGeneratorNested for ActionFeatLog {
+impl OpGeneratorNested for ActionLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
-        ActionFeat::ExecutionNodeFeat(self.execution_node_feat().generate(rng))
+        Action::ExecutionNodeSuper(self.execution_node_super().generate(rng))
+    }
+}
+
+impl OpGeneratorNested for ConditionKindLog {
+    fn generate(&self, rng: &mut impl Rng) -> Self::Op {
+        let log = match &self.child {
+            ConditionKindContainer::Value(child) => match child.as_ref() {
+                ConditionKindChild::IsDoorOpen(log) => log.clone(),
+            },
+            ConditionKindContainer::Conflicts(children) => children
+                .iter()
+                .map(|child| match child {
+                    ConditionKindChild::IsDoorOpen(log) => log.clone(),
+                })
+                .next()
+                .unwrap_or_default(),
+            ConditionKindContainer::Unset => IsDoorOpenLog::default(),
+        };
+        ConditionKind::IsDoorOpen(log.generate(rng))
     }
 }
 
 impl OpGeneratorNested for ConditionLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
-        let log = match &self.child {
-            ConditionContainer::Value(child) => match child.as_ref() {
-                ConditionChild::IsDoorOpen(log) => log.clone(),
-            },
-            ConditionContainer::Conflicts(children) => children
-                .iter()
-                .map(|child| match child {
-                    ConditionChild::IsDoorOpen(log) => log.clone(),
-                })
-                .next()
-                .unwrap_or_default(),
-            ConditionContainer::Unset => IsDoorOpenLog::default(),
-        };
-        Condition::IsDoorOpen(log.generate(rng))
-    }
-}
-
-impl OpGeneratorNested for ConditionFeatLog {
-    fn generate(&self, rng: &mut impl Rng) -> Self::Op {
-        ConditionFeat::ExecutionNodeFeat(self.execution_node_feat().generate(rng))
+        Condition::ExecutionNodeSuper(self.execution_node_super().generate(rng))
     }
 }
 
@@ -479,31 +489,31 @@ impl OpGeneratorNested for BlackboardEntryLog {
 
 impl OpGeneratorNested for InverterLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
-        Inverter::DecoratorFeat(self.decorator_feat().generate(rng))
+        Inverter::DecoratorSuper(self.decorator_super().generate(rng))
     }
 }
 
 impl OpGeneratorNested for IsDoorOpenLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
-        IsDoorOpen::ConditionFeat(self.condition_feat().generate(rng))
+        IsDoorOpen::ConditionSuper(self.condition_super().generate(rng))
     }
 }
 
 impl OpGeneratorNested for OpenDoorLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
-        OpenDoor::ActionFeat(self.action_feat().generate(rng))
+        OpenDoor::ActionSuper(self.action_super().generate(rng))
     }
 }
 
 impl OpGeneratorNested for EnterRoomLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
-        EnterRoom::ActionFeat(self.action_feat().generate(rng))
+        EnterRoom::ActionSuper(self.action_super().generate(rng))
     }
 }
 
 impl OpGeneratorNested for CloseDoorLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
-        CloseDoor::ActionFeat(self.action_feat().generate(rng))
+        CloseDoor::ActionSuper(self.action_super().generate(rng))
     }
 }
 
@@ -511,16 +521,16 @@ impl OpGeneratorNested for SubTreeLog {
     fn generate(&self, rng: &mut impl Rng) -> Self::Op {
         #[derive(Clone, Copy)]
         enum Choice {
-            TreeNodeFeat,
+            TreeNode,
             Tree,
         }
 
-        match [Choice::TreeNodeFeat, Choice::Tree]
+        match [Choice::TreeNode, Choice::Tree]
             .into_iter()
             .choose(rng)
             .unwrap()
         {
-            Choice::TreeNodeFeat => SubTree::TreeNodeFeat(self.tree_node_feat().generate(rng)),
+            Choice::TreeNode => SubTree::TreeNodeSuper(self.tree_node_super().generate(rng)),
             Choice::Tree => SubTree::Tree(self.tree().generate(rng)),
         }
     }

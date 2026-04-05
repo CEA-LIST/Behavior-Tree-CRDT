@@ -1,7 +1,7 @@
 use behaviortree::{
     classifiers::{
-        Action, ActionFeat, BehaviorTree, Blackboard, BlackboardEntry, ExecutionNode,
-        ExecutionNodeFeat, InFlowPort, OpenDoor, Root, TreeNode,
+        Action, ActionKind, BehaviorTree, Blackboard, BlackboardEntry, ExecutionNode,
+        ExecutionNodeKind, InFlowPort, OpenDoor, Root, TreeNodeKind,
     },
     package::{Behaviortree, BehaviortreeLog},
 };
@@ -17,9 +17,9 @@ fn vertex_cascade_creation() {
 
     let _ = replica_a
         .send(Behaviortree::Root(Root::Main(BehaviorTree::Child(
-            Box::new(TreeNode::ExecutionNode(ExecutionNode::Action(
-                Action::OpenDoor(OpenDoor::ActionFeat(ActionFeat::ExecutionNodeFeat(
-                    ExecutionNodeFeat::Inflowports(NestedList::Insert {
+            Box::new(TreeNodeKind::ExecutionNode(ExecutionNodeKind::Action(
+                ActionKind::OpenDoor(OpenDoor::ActionSuper(Action::ExecutionNodeSuper(
+                    ExecutionNode::Inflowports(NestedList::Insert {
                         pos: 0,
                         op: InFlowPort::New,
                     }),

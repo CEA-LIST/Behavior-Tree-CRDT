@@ -16,103 +16,112 @@ __classifiers::record!(
 __classifiers::record!(
     BehaviorTree {
         id: __classifiers::EventGraph<__classifiers::List<char>>,
-        child: Box<TreeNodeLog>,
+        child: Box<TreeNodeKindLog>,
         blackboard: BlackboardLog,
     }
 );
 __classifiers::union!(
-    TreeNode = ExecutionNode(ExecutionNode, ExecutionNodeLog)
-        | Decorator(Decorator, DecoratorLog)
-        | ControlNode(ControlNode, ControlNodeLog)
+    TreeNodeKind = ExecutionNode(ExecutionNodeKind, ExecutionNodeKindLog)
+        | Decorator(DecoratorKind, DecoratorKindLog)
+        | ControlNode(ControlNodeKind, ControlNodeKindLog)
         | SubTree(SubTree, SubTreeLog)
 );
 __classifiers::record!(
-    TreeNodeFeat {
-        id: __classifiers::EventGraph<__classifiers::List<char>>,
+    TreeNode {
+        id:__classifiers::EventGraph<__classifiers::List<char>>,
         name: __classifiers::OptionLog<__classifiers::EventGraph<__classifiers::List<char>>>,
     }
 );
 __classifiers::record!(
     Blackboard {
-        entries: __classifiers::NestedListLog<BlackboardEntryLog>,
+        entries: __classifiers::NestedListLog<BlackboardEntryLog >,
     }
 );
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub enum Status {
+    #[default]
+    Running,
+    Success,
+    Failure,
+}
 __classifiers::union!(
-    ExecutionNode = Action(Action, ActionLog) | Condition(Condition, ConditionLog)
+    ExecutionNodeKind =
+        Action(ActionKind, ActionKindLog) | Condition(ConditionKind, ConditionKindLog)
 );
 __classifiers::record!(
-    ExecutionNodeFeat {
-        tree_node_feat: TreeNodeFeatLog,
-        outflowports: __classifiers::NestedListLog<OutFlowPortLog>,
-        inflowports: __classifiers::NestedListLog<InFlowPortLog>,
+    ExecutionNode {
+        tree_node_super: TreeNodeLog,
+        outflowports: __classifiers::NestedListLog<OutFlowPortLog >,
+        inflowports: __classifiers::NestedListLog<InFlowPortLog >,
     }
 );
 __classifiers::union!(
-    DataFlowPort = OutFlowPort(OutFlowPort, OutFlowPortLog) | InFlowPort(InFlowPort, InFlowPortLog)
+    DataFlowPortKind =
+        OutFlowPort(OutFlowPort, OutFlowPortLog) | InFlowPort(InFlowPort, InFlowPortLog)
 );
-__classifiers::record!(DataFlowPortFeat {});
+__classifiers::record!(DataFlowPort {});
 __classifiers::record!(OutFlowPort {
-    data_flow_port_feat: DataFlowPortFeatLog,
+    data_flow_port_super: DataFlowPortLog,
 });
 __classifiers::record!(InFlowPort {
-    data_flow_port_feat: DataFlowPortFeatLog,
+    data_flow_port_super: DataFlowPortLog,
 });
-__classifiers::union!(Decorator = Inverter(Inverter, InverterLog));
+__classifiers::union!(DecoratorKind = Inverter(Inverter, InverterLog));
 __classifiers::record!(
-    DecoratorFeat {
-        tree_node_feat: TreeNodeFeatLog,
-        child: Box<TreeNodeLog>,
+    Decorator {
+        tree_node_super: TreeNodeLog,
+        child: Box<TreeNodeKindLog>,
     }
 );
 __classifiers::union!(
-    ControlNode = Sequence(Sequence, SequenceLog) | Fallback(Fallback, FallbackLog)
+    ControlNodeKind = Sequence(Sequence, SequenceLog) | Fallback(Fallback, FallbackLog)
 );
 __classifiers::record!(
-    ControlNodeFeat {
-        tree_node_feat: TreeNodeFeatLog,
-        children: __classifiers::NestedListLog<Box<TreeNodeLog>>,
+    ControlNode {
+        tree_node_super: TreeNodeLog,
+        children: __classifiers::NestedListLog<Box<TreeNodeKindLog>>,
     }
 );
 __classifiers::record!(Sequence {
-    control_node_feat: ControlNodeFeatLog,
+    control_node_super: ControlNodeLog,
 });
 __classifiers::record!(Fallback {
-    control_node_feat: ControlNodeFeatLog,
+    control_node_super: ControlNodeLog,
 });
 __classifiers::union!(
-    Action = OpenDoor(OpenDoor, OpenDoorLog)
+    ActionKind = OpenDoor(OpenDoor, OpenDoorLog)
         | EnterRoom(EnterRoom, EnterRoomLog)
         | CloseDoor(CloseDoor, CloseDoorLog)
 );
-__classifiers::record!(ActionFeat {
-    execution_node_feat: ExecutionNodeFeatLog,
+__classifiers::record!(Action {
+    execution_node_super: ExecutionNodeLog,
 });
-__classifiers::union!(Condition = IsDoorOpen(IsDoorOpen, IsDoorOpenLog));
-__classifiers::record!(ConditionFeat {
-    execution_node_feat: ExecutionNodeFeatLog,
+__classifiers::union!(ConditionKind = IsDoorOpen(IsDoorOpen, IsDoorOpenLog));
+__classifiers::record!(Condition {
+    execution_node_super: ExecutionNodeLog,
 });
 __classifiers::record!(
     BlackboardEntry {
-        key : __classifiers::EventGraph<__classifiers::List<char>>,
-        value : __classifiers::EventGraph<__classifiers::List<char>>,
+        key: __classifiers::EventGraph<__classifiers::List<char>>,
+        value: __classifiers::EventGraph<__classifiers::List<char>>,
     }
 );
 __classifiers::record!(Inverter {
-    decorator_feat: DecoratorFeatLog,
+    decorator_super: DecoratorLog,
 });
 __classifiers::record!(IsDoorOpen {
-    condition_feat: ConditionFeatLog,
+    condition_super: ConditionLog,
 });
 __classifiers::record!(OpenDoor {
-    action_feat: ActionFeatLog,
+    action_super: ActionLog,
 });
 __classifiers::record!(EnterRoom {
-    action_feat: ActionFeatLog,
+    action_super: ActionLog,
 });
 __classifiers::record!(CloseDoor {
-    action_feat: ActionFeatLog,
+    action_super: ActionLog,
 });
 __classifiers::record!(SubTree {
-    tree_node_feat: TreeNodeFeatLog,
+    tree_node_super: TreeNodeLog,
     tree: BehaviorTreeLog,
 });

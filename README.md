@@ -18,6 +18,7 @@ Arachne generated the `classifier.rs`, `references.rs`, `package.rs`, and `lib.r
 
 ```sh
 .
+├── bench-results/json # Fuzzer execution results
 ├── src/
 │   ├── utils/ # Fuzzer implementation, helper functions...
 │   ├── classifiers.rs # Automatically generated
@@ -26,7 +27,6 @@ Arachne generated the `classifier.rs`, `references.rs`, `package.rs`, and `lib.r
 │   └── references.rs # Automatically generated
 ├── tests/
 │   ├── fuzzer.rs # Fuzzer test
-│   ├── regression.rs # Regression tests used during Arachne development
 │   └── scenarios.rs # Test scenarios illustrating how conflicts are solved
 ├── behavior_tree.ecore # Ecore metamodel
 └── behavior_tree.png # Ecore metamodel diagram
@@ -34,7 +34,7 @@ Arachne generated the `classifier.rs`, `references.rs`, `package.rs`, and `lib.r
 
 ## Running the project
 
-Rust must be installed on your machine: <https://rust-lang.org/tools/install>.
+Rust must be installed on your machine: <https://rust-lang.org/tools/install>. You must have this project, `PureOpLib`, and `Arachne` in the same root folder. You can change the path of these dependencies in `Cargo.toml`. Replace `XXXX-1` by the name of `PureOpLib`.
 
 Running all the tests:
 
@@ -45,5 +45,5 @@ RUST_LOG=debug cargo test
 Running the fuzzer:
 
 ```sh
-RUST_LOG=debug cargo test --release fuzz
+RUST_LOG=debug cargo test --release -- --ignored --no-capture fuzz
 ```
