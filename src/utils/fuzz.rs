@@ -1,8 +1,5 @@
 use moirai_crdt::list::nested_list::{NestedList, NestedListLog};
-use moirai_fuzz::{
-    metrics::{FuzzMetrics, StructureMetrics},
-    op_generator::OpGeneratorNested,
-};
+use moirai_fuzz::op_generator::OpGeneratorNested;
 use moirai_protocol::{
     crdt::{eval::EvalNested, query::Read},
     state::log::IsLog,
@@ -67,7 +64,7 @@ fn generate_boxed_tree_list(
         }
     };
 
-    assert!(log.is_enabled(&op));
+    assert!(log.is_enabled(&op).is_ok());
     op
 }
 
@@ -533,10 +530,5 @@ impl OpGeneratorNested for SubTreeLog {
             Choice::TreeNode => SubTree::TreeNodeSuper(self.tree_node_super().generate(rng)),
             Choice::Tree => SubTree::Tree(self.tree().generate(rng)),
         }
-    }
-}
-impl FuzzMetrics for BehaviortreeLog {
-    fn structure_metrics(&self) -> StructureMetrics {
-        StructureMetrics::object([self.root_log().structure_metrics()])
     }
 }
