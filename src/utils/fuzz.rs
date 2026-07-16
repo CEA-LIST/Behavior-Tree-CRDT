@@ -2,7 +2,7 @@ use moirai_crdt::list::nested_list::{NestedList, NestedListLog};
 use moirai_fuzz::op_generator::OpGeneratorNested;
 use moirai_protocol::{
     crdt::{eval::EvalNested, query::Read},
-    state::log::IsLog,
+    state::log::{BoxedLog, IsLog},
 };
 use rand::{
     Rng, RngExt,
@@ -16,12 +16,15 @@ use crate::{
     references::compute_arc_constraints,
 };
 
-fn generate_boxed_tree_node(log: &TreeNodeKindLog, rng: &mut impl Rng) -> Box<TreeNodeKind> {
-    Box::new(log.generate(rng))
+fn generate_boxed_tree_node(
+    log: &BoxedLog<TreeNodeKindLog>,
+    rng: &mut impl Rng,
+) -> Box<TreeNodeKind> {
+    log.generate(rng)
 }
 
 fn generate_boxed_tree_list(
-    log: &NestedListLog<Box<TreeNodeKindLog>>,
+    log: &NestedListLog<BoxedLog<TreeNodeKindLog>>,
     rng: &mut impl Rng,
 ) -> NestedList<Box<TreeNodeKind>> {
     enum Choice {
@@ -43,7 +46,7 @@ fn generate_boxed_tree_list(
     let op = match choice {
         Choice::Insert => {
             let pos = rng.random_range(0..=positions.len());
-            let op = generate_boxed_tree_node(&Box::<TreeNodeKindLog>::default(), rng);
+            let op = generate_boxed_tree_node(&BoxedLog::<TreeNodeKindLog>::default(), rng);
             NestedList::Insert { pos, op }
         }
         Choice::Update => {
@@ -54,7 +57,7 @@ fn generate_boxed_tree_list(
                 .get_child(target_id)
                 .map(|child| generate_boxed_tree_node(child, rng))
                 .unwrap_or_else(|| {
-                    generate_boxed_tree_node(&Box::<TreeNodeKindLog>::default(), rng)
+                    generate_boxed_tree_node(&BoxedLog::<TreeNodeKindLog>::default(), rng)
                 });
             NestedList::Update { pos, op }
         }
